@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberHack Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* ===== MAIN STYLES ===== */
+        :root {
+            --primary-color: #5D5CDE;
+            --secondary-color: #38B2AC;
+            --terminal-bg: #0D1117;
+            --terminal-text: #58A6FF;
+            --success-color: #10B981;
+            --error-color: #EF4444;
+            --warning-color: #F59E0B;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #181818;
+                --text-primary: #E5E7EB;
+                --card-bg: #262626;
+                --border-color: #3F3F46;
+                --modal-bg: #1F1F1F;
+            }
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #FFFFFF;
+                --text-primary: #1F2937;
+                --card-bg: #F9FAFB;
+                --border-color: #E5E7EB;
+                --modal-bg: #FFFFFF;
+            }
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* ===== TERMINALS & COMMAND INTERFACE ===== */
+        .terminal {
+            background-color: var(--terminal-bg);
+            color: var(--terminal-text);
+            font-family: 'Courier New', monospace;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-y: auto;
+            height: 300px;
+            white-space: pre-wrap;
+        }
+
+        .typing-effect {
+            overflow: hidden;
+            border-right: 0.15em solid var(--terminal-text);
+            white-space: nowrap;
+            margin: 0;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: var(--terminal-text) }
+        }
+
+        /* ===== CARDS & UI COMPONENTS ===== */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 0.375rem;
+            padding: 0.625rem 1.25rem;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #4B4BB8;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            border-radius: 0.375rem;
+            padding: 0.625rem 1.25rem;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #2C9490;
+        }
+
+        .hint-box {
+            background-color: rgba(93, 92, 222, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.25rem;
+            display: none;
+        }
+
+        /* ===== PROGRESS INDICATORS ===== */
+        .progress-step {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-step::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.25rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background-color: var(--border-color);
+        }
+
+        .progress-step.completed::before {
+            background-color: var(--success-color);
+        }
+
+        .progress-step.current::before {
+            background-color: var(--primary-color);
+        }
+
+        /* ===== LOADERS & ANIMATIONS ===== */
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid var(--primary-color);
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ===== MODALS & OVERLAYS ===== */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background-color: var(--modal-bg);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-backdrop.active .modal {
+            transform: scale(1);
+        }
+
+        /* ===== PROFILE & USER INTERFACE ===== */
+        .avatar-option {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 3px solid transparent;
+        }
+
+        .avatar-option:hover {
+            transform: scale(1.1);
+        }
+
+        .avatar-option.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+
+        /* ===== NOTIFICATIONS ===== */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--card-bg);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            min-width: 300px;
+            z-index: 40;
+            transform: translateX(120%);
+            transition: transform 0.3s ease-out;
+        }
+
+        .notification.active {
+            transform: translateX(0);
+        }
+
+        /* ===== SOUND CONTROLS ===== */
+        .volume-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 5px;
+            background: var(--border-color);
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            border: none;
+        }
+
+        /* ===== TOOL TOOLTIPS ===== */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: var(--terminal-bg);
+            color: var(--terminal-text);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            width: 200px;
+            font-size: 0.75rem;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- ===== HEADER SECTION ===== -->
+        <header class="mb-10">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-center md:text-left mb-4 md:mb-0">
+                    <span class="text-primary-color">Cyber</span>Hack Simulator
+                </h1>
+                <div class="flex space-x-4">
+                    <button id="profileBtn" class="btn-secondary flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                        Profile
+                    </button>
+                    <button id="settingsBtn" class="btn-primary flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                        </svg>
+                        Settings
+                    </button>
+                </div>
+            </div>
+            <div class="bg-primary-color bg-opacity-10 rounded-lg p-4 md:p-6">
+                <div class="flex items-center mb-4">
+                    <div class="h-10 w-10 rounded-full bg-primary-color text-white flex items-center justify-center mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold">Welcome to CyberHack Simulator</h2>
+                        <p class="text-sm opacity-75">Learn real-world hacking techniques in a safe environment</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-full bg-success-color bg-opacity-20 text-success-color flex items-center justify-center mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <span class="text-sm">Choose your hacking path</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-full bg-primary-color bg-opacity-20 text-primary-color flex items-center justify-center mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <span class="text-sm">Complete hacking missions</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-full bg-warning-color bg-opacity-20 text-warning-color flex items-center justify-center mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                            </svg>
+                        </div>
+                        <span class="text-sm">Earn skills & upgrade tools</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== PATH SELECTION SECTION ===== -->
+        <div id="pathSelectionSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div id="blackHatCard" class="card p-6 cursor-pointer">
+                <div class="h-12 w-12 rounded-full bg-error-color bg-opacity-20 text-error-color flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Black Hat</h3>
+                <p class="text-sm opacity-75 mb-4">Master unauthorized access, exploit vulnerabilities, and evade detection.</p>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs bg-error-color bg-opacity-10 text-error-color px-2 py-1 rounded">HIGH RISK</span>
+                    <button class="text-sm font-medium text-primary-color">Select &rarr;</button>
+                </div>
+            </div>
+
+            <div id="whiteHatCard" class="card p-6 cursor-pointer">
+                <div class="h-12 w-12 rounded-full bg-success-color bg-opacity-20 text-success-color flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2">White Hat</h3>
+                <p class="text-sm opacity-75 mb-4">Defend systems, find vulnerabilities ethically, and protect organizations.</p>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs bg-success-color bg-opacity-10 text-success-color px-2 py-1 rounded">LEGAL</span>
+                    <button class="text-sm font-medium text-primary-color">Select &rarr;</button>
+                </div>
+            </div>
+
+            <div id="greyHatCard" class="card p-6 cursor-pointer">
+                <div class="h-12 w-12 rounded-full bg-warning-color bg-opacity-20 text-warning-color flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Grey Hat</h3>
+                <p class="text-sm opacity-75 mb-4">Walk the line between ethical and illegal hacking, breaking rules for good reasons.</p>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs bg-warning-color bg-opacity-10 text-warning-color px-2 py-1 rounded">MODERATE RISK</span>
+                    <button class="text-sm font-medium text-primary-color">Select &rarr;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== GAME SECTION ===== -->
+        <div id="gameSection" class="hidden">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold mb-4">Mission: <span id="missionTitle">Corporate Infiltration</span></h2>
+                <div class="bg-card-bg rounded-lg p-4 mb-4">
+                    <p id="missionDescription" class="text-sm">Your first task is to infiltrate a corporate network by exploiting vulnerabilities in their security system. Begin by accessing their public-facing login portal.</p>
+                </div>
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium mr-2">Difficulty:</span>
+                        <div class="flex">
+                            <span class="h-4 w-4 rounded-full bg-primary-color mr-1"></span>
+                            <span class="h-4 w-4 rounded-full bg-primary-color bg-opacity-30 mr-1"></span>
+                            <span class="h-4 w-4 rounded-full bg-primary-color bg-opacity-30"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium mr-2">Time Left:</span>
+                        <span id="timer" class="text-sm">10:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-bold">Terminal</h3>
+                            <div class="flex space-x-2">
+                                <button id="clearTerminal" class="text-xs px-2 py-1 bg-card-bg rounded">Clear</button>
+                                <button id="helpButton" class="text-xs px-2 py-1 bg-primary-color text-white rounded">Help</button>
+                                <button id="saveButton" class="text-xs px-2 py-1 bg-success-color text-white rounded flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        <div id="terminal" class="terminal">
+<span class="text-green-400">root@cyberhack:~$</span> Initializing system...
+<span class="text-green-400">root@cyberhack:~$</span> Welcome to CyberHack Terminal v1.0
+<span class="text-green-400">root@cyberhack:~$</span> Type 'help' for available commands
+<span class="text-green-400">root@cyberhack:~$</span> _
+</div>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="flex items-center mb-2">
+                            <h3 class="text-lg font-bold">Command Input</h3>
+                            <div id="commandHint" class="ml-2 text-xs text-gray-500 hidden">(Try: scan, connect, or help)</div>
+                        </div>
+                        <div class="flex">
+                            <input id="commandInput" type="text" class="flex-grow text-base py-2 px-4 rounded-l-lg border border-border-color bg-card-bg" placeholder="Enter command...">
+                            <button id="runCommand" class="btn-primary rounded-l-none rounded-r-lg">Execute</button>
+                        </div>
+                    </div>
+
+                    <div id="hintBox" class="hint-box">
+                        <h4 class="font-bold mb-2">Hint System</h4>
+                        <p id="hintText" class="text-sm">Stuck? Try using the 'scan' command to check for available networks.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card p-6 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold">Mission Progress</h3>
+                            <span id="experienceCounter" class="text-xs px-2 py-1 bg-primary-color bg-opacity-10 text-primary-color rounded">XP: 0</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="progress-step completed">
+                                <span class="text-sm font-medium">Access login portal</span>
+                            </div>
+                            <div class="progress-step current">
+                                <span class="text-sm font-medium">Identify vulnerabilities</span>
+                            </div>
+                            <div class="progress-step">
+                                <span class="text-sm font-medium">Exploit security weakness</span>
+                            </div>
+                            <div class="progress-step">
+                                <span class="text-sm font-medium">Gain system access</span>
+                            </div>
+                            <div class="progress-step">
+                                <span class="text-sm font-medium">Cover your tracks</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                            <div class="bg-primary-color h-2.5 rounded-full" style="width: 25%"></div>
+                        </div>
+                        <p class="text-xs mt-2 text-right">1/5 steps completed</p>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold mb-4">Available Tools</h3>
+                        <div class="space-y-3" id="toolsContainer">
+                            <div class="flex justify-between items-center p-2 bg-card-bg bg-opacity-50 rounded hover:bg-opacity-80 cursor-pointer tooltip">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-primary-color bg-opacity-20 text-primary-color flex items-center justify-center mr-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 110-2h4a1 1 0 011 1v4a1 1 0 11-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 112 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 110 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 110-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium">Network Scanner</span>
+                                </div>
+                                <span class="text-xs px-2 py-1 bg-primary-color bg-opacity-10 text-primary-color rounded">Basic</span>
+                                <span class="tooltip-text">Detects available networks and devices. Use 'scan' command.</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-card-bg bg-opacity-50 rounded hover:bg-opacity-80 cursor-pointer tooltip">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-primary-color bg-opacity-20 text-primary-color flex items-center justify-center mr-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium">Password Cracker</span>
+                                </div>
+                                <span class="text-xs px-2 py-1 bg-primary-color bg-opacity-10 text-primary-color rounded">Basic</span>
+                                <span class="tooltip-text">Brute forces password hashes. Use 'crack [target]' command.</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-card-bg bg-opacity-50 rounded hover:bg-opacity-80 cursor-pointer tooltip">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-primary-color bg-opacity-20 text-primary-color flex items-center justify-center mr-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium">Port Scanner</span>
+                                </div>
+                                <span class="text-xs px-2 py-1 bg-primary-color bg-opacity-10 text-primary-color rounded">Basic</span>
+                                <span class="tooltip-text">Scans for open ports on a target. Use 'portscan [ip]' command.</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-card-bg bg-opacity-50 rounded hover:bg-opacity-80 cursor-not-allowed opacity-50 tooltip">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-gray-400 bg-opacity-20 text-gray-400 flex items-center justify-center mr-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium">Vulnerability Scanner</span>
+                                </div>
+                                <span class="text-xs px-2 py-1 bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 rounded">Locked</span>
+                                <span class="tooltip-text">Advanced tool to detect security flaws. Complete missions to unlock.</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-card-bg bg-opacity-50 rounded hover:bg-opacity-80 cursor-not-allowed opacity-50 tooltip">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-gray-400 bg-opacity-20 text-gray-400 flex items-center justify-center mr-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium">Stealth Module</span>
+                                </div>
+                                <span class="text-xs px-2 py-1 bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 rounded">Locked</span>
+                                <span class="tooltip-text">Avoid detection during intrusions. Complete missions to unlock.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== AI COACH SECTION ===== -->
+        <div id="aiCoachSection" class="hidden mt-10 bg-card-bg rounded-lg p-6">
+            <div class="flex items-start mb-4">
+                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-primary-color text-white flex items-center justify-center mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                </div>
+                <div class="flex-grow">
+                    <h3 class="text-xl font-bold mb-2">AI Coach</h3>
+                    <div id="aiCoachContent" class="text-sm bg-terminal-bg bg-opacity-10 p-4 rounded-lg">
+                        <p>I notice you're using brute force methods to crack this password. While that can work, social engineering might be more efficient here. Try looking for clues about the user's interests in their profile.</p>
+                        <p class="mt-2">Pro tip: In real-world scenarios, passwords are often based on personal information that can be found through open-source intelligence (OSINT).</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button id="dismissCoach" class="text-xs px-4 py-2 bg-card-bg border border-border-color rounded hover:bg-opacity-80">Dismiss</button>
+                <button id="getMoreHelp" class="text-xs px-4 py-2 bg-primary-color text-white rounded ml-2 hover:bg-opacity-90">Get More Help</button>
+            </div>
+        </div>
+
+        <!-- ===== PROFILE MODAL ===== -->
+        <div id="profileModal" class="modal-backdrop">
+            <div class="modal">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">Your Profile</h3>
+                    <button id="closeProfileModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="profileContent">
+                    <!-- If no profile exists -->
+                    <div id="createProfileSection">
+                        <p class="mb-4">Create a new hacker profile to track your progress and achievements.</p>
+                        
+                        <div class="mb-4">
+                            <label for="username" class="block text-sm font-medium mb-1">Hacker Handle</label>
+                            <input type="text" id="username" class="w-full text-base py-2 px-4 rounded-lg border border-border-color bg-card-bg" placeholder="Enter your hacker name">
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2">Select Avatar</label>
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0iIzVENUNERSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNMTggMTBhOCA4IDAgMTEtMTYgMCA4IDggMCAwMTE2IDB6bS02LTNhMiAyIDAgMTEtNCAwIDIgMiAwIDAxNCAwem0tMiA0YTUgNSAwIDAwLTQuNTQ2IDIuOTE2QTUuOTg2IDUuOTg2IDAgMDAxMCAxNmEyIDIgMCAwMDEuOTk0LTIuMTY1IDMuMDAxIDMuMDAxIDAgMDEtLjg3LTEuNzkyIDMgMyAwIDAxLTIuMTI0LTIuODUzVjkuVjkuMDE3YTMuMDAyIDMuMDAyIDAgMDEyLjEyNC0yLjg1MyAzIDMgMCAwMS44Ny0xLjc5MkEyIDIgMCAwMDEwIDRhNS45ODYgNS45ODYgMCAwMC00LjU0NiAyLjA4NEE1IDUgMCAwMDEwIDExeiIgY2xpcC1ydWxlPSJldmVub2RkIiAvPjwvc3ZnPg==" class="avatar-option" data-avatar="1" alt="Avatar 1">
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0iI0VGNDQ0NCI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNMTggMTBhOCA4IDAgMTEtMTYgMCA4IDggMCAwMTE2IDB6bS04LTNhMSAxIDAgMDAtLjg2
+<!-- Closing the avatar options section -->
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0iI0VGNDQ0NCI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNMTggMTBhOCA4IDAgMTEtMTYgMCA4IDggMCAwMTE2IDB6bS04LTNhMSAxIDAgMDAtLjg2NyAxLjVINC41YTEgMSAwIDAwLTEgMXYxYTEgMSAwIDAwMSAxSDhhMSAxIDAgMDAtLjg2NyAxLjVIMmExIDEgMCAwMC0xIDF2MWExIDEgMCAwMDEgMWgxMmExIDEgMCAwMDEtMXYtMWExIDEgMCAwMC0xLTFoLTEuNjMzYTEgMSAwIDAwLS44NjctMS41SDhhMSAxIDAgMDEtMS0xdi0xYTEgMSAwIDAxMS0xaDUuNWExIDEgMCAwMS44NjcuNUgxNWExIDEgMCAwMTEgMXYxYTEgMSAwIDAxLTEgMWgtMS4zNjNhMS41IDEuNSAwIDAwLTEuMjg5LTJIOWExIDEgMCAwMS0xLTF2LS4wMDFBMiAyIDAgMDExMCA2aDNhMiAyIDAgMDEyIDJ2Mi41YTEgMSAwIDAxLTEgMWgtNy43MjNhMS41IDEuNSAwIDAwLTEuMzA2IDJINWExIDEgMCAwMC0xIDF2MWExIDEgMCAwMDEgMWgxMGExIDEgMCAwMDEtMXYtMWExIDEgMCAwMC0xLTFoLS4wNjNhMS41IDEuNSAwIDAwLTEuMjktMi41MDJINy43MzZhLjUuNSAwIDAxMC0xaDQuNTEzYS41LjUgMCAwMC40My0uNzUzLjUuNSAwIDAwLS40My0uMjQ3SDkuNWExLjUgMS41IDAgMDEwLTNIMThhMSAxIDAgMDExIDF2My42MmExIDEgMCAwMS0uMDIuMTk5bC0xLjQxNCA0LjI0MkExLjUgMS41IDAgMDExNS4zNzcgMTdoLTEuOTA0YTEuNSAxLjUgMCAwMS0xLjM4My0uOTFsLS44NDgtMi4wNWExIDEgMCAwMC0uOTIyLS41OThIOC40NjlhMSAxIDAgMDAtLjcwNy4yOTNsLTUuNDczIDUuNDczYTEgMSAwIDAwMCAxLjQxNGwzIDNhMSAxIDAgMDAxLjQxNCAwTDExIDIwLjQxNFYxNGExIDEgMCAwMTEtMWgzLjVhMSAxIDAgMDEuOTIyLjZsMSAyLjRhLjUuNSAwIDAwLjQ2MS4zbDIuNDA2LS4wMjFhLjUuNSAwIDAwLjQ2NC0uNjgzbC0uOTU2LTIuODdBMS41IDEuNSAwIDAxMTkgMTFWOXptLTktNC41YS41LjUgMCAwMS41LS41aDZ2MWgtNmEuNS41IDAgMDEtLjUtLjV6IiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIC8+PC9zdmc+" class="avatar-option" data-avatar="2" alt="Avatar 2">
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0iIzEwQjk4MSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNNSAyYTEgMSAwIDAxMS0xaDhhMSAxIDAgMDExIDF2MTBhMSAxIDAgMDEtMSAxaC04YTEgMSAwIDAxLTEtMVYyem0yIDFoNHY4SDdWM3ptOCAyaDF2OWgtMXYxaC0ydi0xSDRWNUgzVjNIMmExIDEgMCAwMC0xIDF2MTJhMSAxIDAgMDAxIDFoMTRhMSAxIDAgMDAxLTFWNGExIDEgMCAwMC0xLTFoLTF2MXptLTktMS41YS41LjUgMCAwMC0uNS41diRhLjUuNSAwIDAwLjUuNWgxYS41LjUgMCAwMC41LS41VjVhLjUuNSAwIDAwLS41LS41aDAtMXptOSAwYS41LjUgMCAwMC0uNS41djRhLjUuNSAwIDAwLjUuNWgxYS41LjUgMCAwMC41LS41VjVhLjUuNSAwIDAwLS41LS41aC0xeiIgY2xpcC1ydWxlPSJldmVub2RkIiAvPjwvc3ZnPg==" class="avatar-option" data-avatar="3" alt="Avatar 3">
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end">
+                            <button id="createProfileBtn" class="btn-primary">Create Profile</button>
+                        </div>
+                    </div>
+                    
+                    <!-- If profile exists (initially hidden) -->
+                    <div id="existingProfileSection" class="hidden">
+                        <div class="flex items-center mb-6">
+                            <div id="profileAvatar" class="h-16 w-16 rounded-full bg-primary-color text-white flex items-center justify-center mr-4">
+                                <!-- Avatar will be loaded here -->
+                            </div>
+                            <div>
+                                <h4 id="profileUsername" class="text-lg font-bold">HackerAlias</h4>
+                                <div class="flex mt-1">
+                                    <span class="text-xs bg-primary-color bg-opacity-10 text-primary-color px-2 py-1 rounded mr-2">Level 1</span>
+                                    <span id="profileXP" class="text-xs bg-success-color bg-opacity-10 text-success-color px-2 py-1 rounded">XP: 0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h5 class="font-medium mb-2">Skills & Achievements</h5>
+                            <div class="bg-card-bg bg-opacity-50 p-3 rounded">
+                                <div id="achievementsList" class="text-sm">
+                                    <p class="text-gray-500 dark:text-gray-400 italic">Complete missions to earn achievements.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h5 class="font-medium mb-2">Mission History</h5>
+                            <div class="bg-card-bg bg-opacity-50 p-3 rounded">
+                                <div id="missionHistoryList" class="text-sm">
+                                    <p class="text-gray-500 dark:text-gray-400 italic">No missions completed yet.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end">
+                            <button id="resetProfileBtn" class="text-xs px-4 py-2 bg-error-color bg-opacity-10 text-error-color rounded">Reset Profile</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SETTINGS MODAL ===== -->
+        <div id="settingsModal" class="modal-backdrop">
+            <div class="modal">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">Settings</h3>
+                    <button id="closeSettingsModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <h5 class="font-medium mb-2">Difficulty</h5>
+                    <div class="flex space-x-4">
+                        <button id="easyMode" class="flex-1 text-center py-2 border border-primary-color rounded">Easy</button>
+                        <button id="normalMode" class="flex-1 text-center py-2 bg-primary-color text-white rounded">Normal</button>
+                        <button id="hardMode" class="flex-1 text-center py-2 border border-primary-color rounded">Hard</button>
+                    </div>
+                    <p class="text-xs mt-2 text-gray-500 dark:text-gray-400">
+                        Difficulty affects mission complexity, time limits, and XP rewards.
+                    </p>
+                </div>
+                
+                <div class="mb-6">
+                    <h5 class="font-medium mb-2">Sound Effects</h5>
+                    <div class="flex items-center">
+                        <input type="range" id="volumeSlider" class="volume-slider mr-4" min="0" max="100" value="70">
+                        <span id="volumeValue">70%</span>
+                    </div>
+                    <div class="flex items-center mt-3">
+                        <input type="checkbox" id="muteSound" class="mr-2">
+                        <label for="muteSound" class="text-sm">Mute all sounds</label>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <h5 class="font-medium mb-2">Hints</h5>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="enableHints" class="mr-2" checked>
+                        <label for="enableHints" class="text-sm">Show hints when stuck</label>
+                    </div>
+                    <div class="flex items-center mt-3">
+                        <input type="checkbox" id="enableAICoach" class="mr-2" checked>
+                        <label for="enableAICoach" class="text-sm">Enable AI coaching</label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button id="saveSettingsBtn" class="btn-primary">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== NOTIFICATION SYSTEM ===== -->
+        <div id="notification" class="notification">
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="font-bold" id="notificationTitle">Achievement Unlocked!</h4>
+                <button id="closeNotification" class="text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <p class="text-sm" id="notificationContent">You've earned the "Network Infiltrator" achievement!</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const blackHatCard = document.getElementById('blackHatCard');
+            const whiteHatCard = document.getElementById('whiteHatCard');
+            const greyHatCard = document.getElementById('greyHatCard');
+            const gameSection = document.getElementById('gameSection');
+            const pathSelectionSection = document.getElementById('pathSelectionSection');
+            const terminal = document.getElementById('terminal');
+            const commandInput = document.getElementById('commandInput');
+            const runCommand = document.getElementById('runCommand');
+            const clearTerminal = document.getElementById('clearTerminal');
+            const helpButton = document.getElementById('helpButton');
+            const hintBox = document.getElementById('hintBox');
+            const hintText = document.getElementById('hintText');
+            const commandHint = document.getElementById('commandHint');
+            const timer = document.getElementById('timer');
+            const aiCoachSection = document.getElementById('aiCoachSection');
+            const dismissCoach = document.getElementById('dismissCoach');
+            const getMoreHelp = document.getElementById('getMoreHelp');
+            
+            // Profile and Settings Modals
+            const profileBtn = document.getElementById('profileBtn');
+            const settingsBtn = document.getElementById('settingsBtn');
+            const profileModal = document.getElementById('profileModal');
+            const settingsModal = document.getElementById('settingsModal');
+            const closeProfileModal = document.getElementById('closeProfileModal');
+            const closeSettingsModal = document.getElementById('closeSettingsModal');
+            const createProfileBtn = document.getElementById('createProfileBtn');
+            const createProfileSection = document.getElementById('createProfileSection');
+            const existingProfileSection = document.getElementById('existingProfileSection');
+            const resetProfileBtn = document.getElementById('resetProfileBtn');
+            const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+            
+            // Notification
+            const notification = document.getElementById('notification');
+            const notificationTitle = document.getElementById('notificationTitle');
+            const notificationContent = document.getElementById('notificationContent');
+            const closeNotification = document.getElementById('closeNotification');
+            
+            // Avatar selection
+            const avatarOptions = document.querySelectorAll('.avatar-option');
+            let selectedAvatar = null;
+
+            // Game state
+            let gameStarted = false;
+            let selectedPath = '';
+            let playerProfile = null;
+            let experience = 0;
+            let currentMission = {
+                title: 'Corporate Infiltration',
+                description: 'Your first task is to infiltrate a corporate network by exploiting vulnerabilities in their security system. Begin by accessing their public-facing login portal.',
+                difficulty: 1,
+                timeLimit: 600, // 10 minutes in seconds
+                steps: [
+                    { name: 'Access login portal', completed: false },
+                    { name: 'Identify vulnerabilities', completed: false },
+                    { name: 'Exploit security weakness', completed: false },
+                    { name: 'Gain system access', completed: false },
+                    { name: 'Cover your tracks', completed: false }
+                ]
+            };
+            let timerInterval = null;
+            let secondsLeft = currentMission.timeLimit;
+            let hintTimeout = null;
+            
+            // Settings
+            let settings = {
+                difficulty: 'normal',
+                soundVolume: 70,
+                muteSounds: false,
+                showHints: true,
+                enableAICoach: true
+            };
+
+            // Command history
+            let commandHistory = [];
+            let historyIndex = -1;
+
+            // Available commands
+            const commands = {
+                'help': {
+                    description: 'Show available commands',
+                    execute: () => {
+                        appendToTerminal('Available commands:');
+                        Object.keys(commands).forEach(cmd => {
+                            if (cmd !== 'clear') {
+                                appendToTerminal(`  ${cmd} - ${commands[cmd].description}`);
+                            }
+                        });
+                    }
+                },
+                'clear': {
+                    description: 'Clear the terminal',
+                    execute: () => {
+                        clearTerminalOutput();
+                    }
+                },
+                'scan': {
+                    description: 'Scan for network devices',
+                    execute: () => {
+                        appendToTerminal('Scanning for available networks...');
+                        // Simulate network scanning with a delay
+                        setTimeout(() => {
+                            appendToTerminal('Networks found:');
+                            appendToTerminal('  > CorpNet (192.168.1.1) - Secured');
+                            appendToTerminal('  > Guest-WiFi (192.168.1.2) - Open');
+                            appendToTerminal('  > Admin-VPN (10.0.0.1) - Secured');
+                            currentMission.steps[0].completed = true;
+                            updateProgress();
+                            addExperience(25);
+                            showHint('Try using "connect [ip]" to connect to a network.');
+                        }, 2000);
+                    }
+                },
+                'connect': {
+                    description: 'Connect to a specified network',
+                    execute: (args) => {
+                        if (!args || args.length === 0) {
+                            appendToTerminal('Error: Specify an IP address to connect to (e.g., connect 192.168.1.1)');
+                            return;
+                        }
+                        const ip = args[0];
+                        appendToTerminal(`Attempting to connect to ${ip}...`);
+                        
+                        // Simulate connection attempt with delay
+                        setTimeout(() => {
+                            if (ip === '192.168.1.1') {
+                                appendToTerminal('Connected to CorpNet (192.168.1.1)');
+                                appendToTerminal('Login portal detected. Access restricted.');
+                                showHint('Try using "analyze" to check for vulnerabilities in the login portal.');
+                                currentMission.steps[0].completed = true;
+                                updateProgress();
+                                addExperience(15);
+                            } else if (ip === '192.168.1.2') {
+                                appendToTerminal('Connected to Guest-WiFi (192.168.1.2)');
+                                appendToTerminal('Limited access granted. No valuable resources found.');
+                                showHint('The guest network likely has limited access. Try connecting to the corporate network instead.');
+                            } else if (ip === '10.0.0.1') {
+                                appendToTerminal('Connection failed: VPN requires authentication certificate.');
+                                showHint('The VPN requires advanced authentication. Focus on the corporate network first.');
+                            } else {
+                                appendToTerminal(`Connection failed: Could not reach ${ip}`);
+                                showHint('Make sure you\'re connecting to one of the discovered IP addresses.');
+                            }
+                        }, 1500);
+                    }
+                },
+                'analyze': {
+                    description: 'Analyze current target for vulnerabilities',
+                    execute: () => {
+                        appendToTerminal('Analyzing current target for vulnerabilities...');
+                        setTimeout(() => {
+                            appendToTerminal('Vulnerability scan complete:');
+                            appendToTerminal('  > SQL Injection possibility detected in login form');
+                            appendToTerminal('  > Outdated server software (Apache 2.2.34)');
+                            appendToTerminal('  > Weak password policy detected');
+                            currentMission.steps[1].completed = true;
+                            updateProgress();
+                            addExperience(30);
+                            showHint('Try using "exploit sql" to attempt a SQL injection attack on the login form.');
+                            showAICoach();
+                        }, 3000);
+                    }
+                },
+                'exploit': {
+                    description: 'Attempt to exploit a vulnerability',
+                    execute: (args) => {
+                        if (!args || args.length === 0) {
+                            appendToTerminal('Error: Specify a vulnerability to exploit (e.g., exploit sql)');
+                            return;
+                        }
+                        
+                        const vulnerability = args[0].toLowerCase();
+                        appendToTerminal(`Attempting to exploit ${vulnerability} vulnerability...`);
+                        
+                        setTimeout(() => {
+                            if (vulnerability === 'sql') {
+                                appendToTerminal('Injecting SQL payload: \' OR 1=1 --');
+                                setTimeout(() => {
+                                    appendToTerminal('SQL Injection successful!');
+                                    appendToTerminal('Authentication bypassed.');
+                                    appendToTerminal('Access granted to user database.');
+                                    currentMission.steps[2].completed = true;
+                                    updateProgress();
+                                    addExperience(50);
+                                    showHint('Now try using "access system" to gain administrator access.');
+                                }, 2000);
+                            } else if (vulnerability === 'password') {
+                                appendToTerminal('Attempting password brute force attack...');
+                                setTimeout(() => {
+                                    appendToTerminal('Brute force failed: Rate limiting detected after 3 attempts.');
+                                    showHint('The system has rate limiting protection. Try a different approach.');
+                                }, 2000);
+                            } else if (vulnerability === 'apache') {
+                                appendToTerminal('Attempting to exploit Apache vulnerability...');
+                                setTimeout(() => {
+                                    appendToTerminal('Exploitation failed: Required modules not available in basic toolkit.');
+                                    showHint('You need more advanced tools to exploit the server vulnerability. Try another approach.');
+                                }, 2000);
+                            } else {
+                                appendToTerminal(`Unknown vulnerability: ${vulnerability}`);
+                                showHint('Try exploiting one of the vulnerabilities found during analysis.');
+                            }
+                        }, 1500);
+                    }
+                },
+                'access': {
+                    description: 'Access a system or resource',
+                    execute: (args) => {
+                        if (!args || args.length === 0) {
+                            appendToTerminal('Error: Specify what to access (e.g., access system)');
+                            return;
+                        }
+                        
+                        const target = args[0].toLowerCase();
+                        appendToTerminal(`Attempting to access ${target}...`);
+                        
+                        setTimeout(() => {
+                            if (target === 'system' && currentMission.steps[2].completed) {
+                                appendToTerminal('Escalating privileges...');
+                                setTimeout(() => {
+                                    appendToTerminal('Administrator access granted!');
+                                    appendToTerminal('System control established.');
+                                    currentMission.steps[3].completed = true;
+                                    updateProgress();
+                                    addExperience(75);
+                                    showHint('Finally, use "clean logs" to remove traces of your activities.');
+                                }, 2000);
+                            } else if (target === 'system') {
+                                appendToTerminal('Access denied: Authentication required.');
+                                showHint('You need to exploit vulnerabilities first to gain access.');
+                            } else if (target === 'database') {
+                                appendToTerminal('Accessing database...');
+                                appendToTerminal('Found user records and credentials.');
+                                showHint('This is valuable information, but you still need system access.');
+                                addExperience(10);
+                            } else {
+                                appendToTerminal(`Cannot access ${target}: Resource not found.`);
+                            }
+                        }, 1500);
+                    }
+                },
+                'clean': {
+                    description: 'Clean traces of your activities',
+                    execute: (args) => {
+                        if (!args || args.length === 0 || args[0].toLowerCase() !== 'logs') {
+                            appendToTerminal('Error: Use "clean logs" to remove evidence of your intrusion');
+                            return;
+                        }
+                        
+                        appendToTerminal('Cleaning system logs...');
+                        setTimeout(() => {
+                            appendToTerminal('Removing access records...');
+                            appendToTerminal('Clearing command history...');
+                            setTimeout(() => {
+                                appendToTerminal('Logs successfully cleaned!');
+                                appendToTerminal('No trace of intrusion remains.');
+                                currentMission.steps[4].completed = true;
+                                updateProgress();
+                                addExperience(60);
+                                
+                                // Mission complete
+                                setTimeout(() => {
+                                    missionComplete();
+                                }, 1500);
+                            }, 1500);
+                        }, 2000);
+                    }
+                },
+                'status': {
+                    description: 'Check current mission status',
+                    execute: () => {
+                        appendToTerminal(`Mission: ${currentMission.title}`);
+                        appendToTerminal(`Description: ${currentMission.description}`);
+                        appendToTerminal(`Time Left: ${timer.textContent}`);
+                        let completedSteps = currentMission.steps.filter(step => step.completed).length;
+                        appendToTerminal(`Progress: ${completedSteps}/${currentMission.steps.length} steps completed.`);
+                        
+                        // Show current steps status
+                        appendToTerminal('\nMission Steps:');
+                        currentMission.steps.forEach((step, index) => {
+                            const status = step.completed ? '✓' : '○';
+                            appendToTerminal(`  ${status} ${index + 1}. ${step.name}`);
+                        });
+                    }
+                },
+                'portscan': {
+                    description: 'Scan for open ports on a target',
+                    execute: (args) => {
+                        if (!args || args.length === 0) {
+                            appendToTerminal('Error: Specify a target IP to scan (e.g., portscan 192.168.1.1)');
+                            return;
+                        }
+                        
+                        const ip = args[0];
+                        appendToTerminal(`Scanning ports on ${ip}...`);
+                        
+                        setTimeout(() => {
+                            if (ip === '192.168.1.1') {
+                                appendToTerminal('Ports scan results:');
+                                appendToTerminal('  > Port 22 (SSH): Closed');
+                                appendToTerminal('  > Port 80 (HTTP): Open');
+                                appendToTerminal('  > Port 443 (HTTPS): Open');
+                                appendToTerminal('  > Port 3306 (MySQL): Filtered');
+                                appendToTerminal('  > Port 8080 (Alt HTTP): Open');
+                                addExperience(20);
+                                showHint('The web server ports are open. Try analyzing for vulnerabilities.');
+                            } else if (ip === '192.168.1.2') {
+                                appendToTerminal('Ports scan results:');
+                                appendToTerminal('  > Port 80 (HTTP): Open');
+                                appendToTerminal('  > Port 8080 (Alt HTTP): Open');
+                                appendToTerminal('  > All other ports appear closed or filtered');
+                                showHint('Limited services available on guest network.');
+                            } else {
+                                appendToTerminal(`Could not reach host: ${ip}`);
+                            }
+                        }, 2500);
+                    }
+                },
+                'crack': {
+                    description: 'Attempt to crack passwords',
+                    execute: (args) => {
+                        if (!args || args.length === 0) {
+                            appendToTerminal('Error: Specify a target to crack (e.g., crack admin)');
+                            return;
+                        }
+                        
+                        const target = args[0].toLowerCase();
+                        appendToTerminal(`Attempting to crack password for ${target}...`);
+                        
+                        setTimeout(() => {
+                            if (target === 'admin') {
+                                appendToTerminal('Running dictionary attack...');
+                                setTimeout(() => {
+                                    appendToTerminal('Attack failed: Strong password detected.');
+                                    showHint('The admin password is too complex for a dictionary attack. Try another approach.');
+                                }, 2000);
+                            } else if (target === 'guest') {
+                                appendToTerminal('Running dictionary attack...');
+                                setTimeout(() => {
+                                    appendToTerminal('Password cracked: "welcome123"');
+                                    appendToTerminal('Guest access granted.');
+                                    addExperience(15);
+                                    showHint('Guest access has limited permissions. Try a different approach for more access.');
+                                }, 2000);
+                            } else if (target === 'database') {
+                                appendToTerminal('Running dictionary attack...');
+                                setTimeout(() => {
+                                    appendToTerminal('Password cracked: "mysql2023"');
+                                    appendToTerminal('Database access granted.');
+                                    addExperience(30);
+                                    showHint('You now have access to the database. Try "access database" to explore it.');
+                                }, 3000);
+                            } else {
+                                appendToTerminal(`User "${target}" not found in the system.`);
+                            }
+                        }, 1000);
+                    }
+                }
+            };
+
+            // Path selection
+            blackHatCard.addEventListener('click', () => selectPath('blackhat'));
+            whiteHatCard.addEventListener('click', () => selectPath('whitehat'));
+            greyHatCard.addEventListener('click', () => selectPath('greyhat'));
+
+            // Command execution
+            runCommand.addEventListener('click', executeCommand);
+            commandInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    executeCommand();
+                } else if (e.key === 'ArrowUp') {
+                    navigateHistory('up');
+                } else if (e.key === 'ArrowDown') {
+                    navigateHistory('down');
+                }
+            });
+
+            // Command hint on focus
+            commandInput.addEventListener('focus', () => {
+                commandHint.classList.remove('hidden');
+            });
+
+            commandInput.addEventListener('blur', () => {
+                commandHint.classList.add('hidden');
+            });
+
+            // Terminal clear button
+            clearTerminal.addEventListener('click', clearTerminalOutput);
+
+            // Help button
+            helpButton.addEventListener('click', () => {
+                commands.help.execute();
+            });
+
+            // Dismiss coach
+            dismissCoach.addEventListener('click', () => {
+                aiCoachSection.classList.add('hidden');
+            });
+
+            // Get more help
+            getMoreHelp.addEventListener('click', () => {
+                requestAICoaching();
+            });
+            
+            // Modal handlers
+            profileBtn.addEventListener('click', () => {
+                showModal(profileModal);
+                loadPlayerProfile();
+            });
+            
+            settingsBtn.addEventListener('click', () => {
+                showModal(settingsModal);
+                loadSettings();
+            });
+            
+            closeProfileModal.addEventListener('click', () => {
+                hideModal(profileModal);
+            });
+            
+            closeSettingsModal.addEventListener('click', () => {
+                hideModal(settingsModal);
+            });
+            
+            // Create profile
+            createProfileBtn.addEventListener('click', () => {
+                const username = document.getElementById('username').value.trim();
+                if (!username) {
+                    alert('Please enter a hacker handle');
+                    return;
+                }
+                
+                if (!selectedAvatar) {
+                    alert('Please select an avatar');
+                    return;
+                }
+                
+                createProfile(username, selectedAvatar);
+                loadPlayerProfile();
+                hideModal(profileModal);
+                showNotification('Profile Created', `Welcome, ${username}! Your hacking journey begins now.`);
+            });
+            
+            // Avatar selection
+            avatarOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    // Remove selected class from all options
+                    avatarOptions.forEach(o => o.classList.remove('selected'));
+                    // Add selected class to clicked option
+                    option.classList.add('selected');
+                    selectedAvatar = option.getAttribute('data-avatar');
+                });
+            });
+            
+            // Reset profile
+            resetProfileBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to reset your profile? All progress will be lost.')) {
+                    localStorage.removeItem('hackerProfile');
+                    playerProfile = null;
+                    loadPlayerProfile();
+                    showNotification('Profile Reset', 'Your profile has been reset successfully.');
+                }
+            });
+            
+            // Save settings
+            saveSettingsBtn.addEventListener('click', () => {
+                saveSettings();
+                hideModal(settingsModal);
+                showNotification('Settings Saved', 'Your preferences have been updated.');
+            });
+            
+            // Difficulty selection
+            document.getElementById('easyMode').addEventListener('click', () => setDifficulty('easy'));
+            document.getElementById('normalMode').addEventListener('click', () => setDifficulty('normal'));
+            document.getElementById('hardMode').addEventListener('click', () => setDifficulty('hard'));
+            
+            // Volume slider
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumeValue = document.getElementById('volumeValue');
+            
+            volumeSlider.addEventListener('input', () => {
+                settings.soundVolume = volumeSlider.value;
+                volumeValue.textContent = `${volumeSlider.value}%`;
+            });
+            
+            // Mute checkbox
+            document.getElementById('muteSound').addEventListener('change', function() {
+                settings.muteSounds = this.checked;
+            });
+            
+            // Hints checkbox
+            document.getElementById('enableHints').addEventListener('change', function() {
+                settings.showHints = this.checked;
+            });
+            
+            // AI Coach checkbox
+            document.getElementById('enableAICoach').addEventListener('change', function() {
+                settings.enableAICoach = this.checked;
+            });
+            
+            // Close notification
+            closeNotification.addEventListener('click', () => {
+                notification.classList.remove('active');
+            });
+
+            // Select hacking path
+            function selectPath(path) {
+                selectedPath = path;
+                gameSection.classList.remove('hidden');
+                pathSelectionSection.classList.add('hidden');
+                
+                // Start the mission timer
+                startTimer();
+                
+                // Set initial focus to command input
+                commandInput.focus();
+                
+                // Set up initial hint timeout
+                hintTimeout = setTimeout(() => {
+                    showHint('Try using the "scan" command to start exploring the network.');
+                }, 20000); // Show hint after 20 seconds of inactivity
+                
+                // Log path selection in profile if exists
+                if (playerProfile) {
+                    playerProfile.selectedPath = path;
+                    savePlayerProfile();
+                }
+                
+                // Show confirmation
+                let pathName = '';
+                if (path === 'blackhat') pathName = 'Black Hat';
+                else if (path === 'whitehat') pathName = 'White Hat';
+                else pathName = 'Grey Hat';
+                
+                showNotification('Path Selected', `You've chosen the ${pathName} path. Good luck on your journey!`);
+            }
+
+            // Execute terminal command
+            function executeCommand() {
+                const cmdText = commandInput.value.trim();
+                if (cmdText === '') return;
+                
+                // Add to command history
+                commandHistory.unshift(cmdText);
+                historyIndex = -1;
+                if (commandHistory.length > 20) commandHistory.pop();
+                
+                // Display command in terminal
+                appendToTerminal(`<span class="text-green-400">root@cyberhack:~$</span> ${cmdText}`);
+                
+                // Reset command input
+                commandInput.value = '';
+                
+                // Parse command
+                const cmdParts = cmdText.split(' ');
+                const cmd = cmdParts[0].toLowerCase();
+                const args = cmdParts.slice(1);
+                
+                // Reset hint timeout
+                clearTimeout(hintTimeout);
+                hintTimeout = setTimeout(() => {
+                    showHint('Stuck? Try using the "help" command to see available commands.');
+                }, 45000); // Show hint after 45 seconds of inactivity
+                
+                // Execute command if exists
+                if (commands[cmd]) {
+                    commands[cmd].execute(args);
+                } else {
+                    appendToTerminal(`Command not found: ${cmd}. Type 'help' for available commands.`);
+                }
+            }
+
+            // Append text to terminal
+            function appendToTerminal(text) {
+                const entry = document.createElement('div');
+                entry.innerHTML = text;
+                terminal.appendChild(entry);
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+
+            // Clear terminal output
+            function clearTerminalOutput() {
+                terminal.innerHTML = '<span class="text-green-400">root@cyberhack:~$</span> Terminal cleared\n<span class="text-green-400">root@cyberhack:~$</span> _';
+            }
+
+            // Navigate command history
+            function navigateHistory(direction) {
+                if (commandHistory.length === 0) return;
+                
+                if (direction === 'up') {
+                    historyIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
+                } else {
+                    historyIndex = Math.max(historyIndex - 1, -1);
+                }
+                
+                if (historyIndex === -1) {
+                    commandInput.value = '';
+                } else {
+                    commandInput.value = commandHistory[historyIndex];
+                    // Move cursor to end of input
+                    setTimeout(() => {
+                        commandInput.selectionStart = commandInput.selectionEnd = commandInput.value.length;
+                    }, 0);
+                }
+            }
+
+            // Start mission timer
+            function startTimer() {
+                updateTimerDisplay();
+                timerInterval = setInterval(() => {
+                    secondsLeft--;
+                    updateTimerDisplay();
+                    
+                    // Check if time's up
+                    if (secondsLeft <= 0) {
+                        clearInterval(timerInterval);
+                        missionFailed('Time\'s up! The security team detected your presence.');
+                    }
+                    
+                    // Check if hint should be shown based on time remaining
+                    if (secondsLeft === currentMission.timeLimit - 120) { // 2 minutes into mission
+                        showHint('Remember to start by scanning the network to find potential targets.');
+                    } else if (secondsLeft === currentMission.timeLimit / 2) { // Halfway through
+                        if (!currentMission.steps[1].completed) {
+                            showHint('You should try to find vulnerabilities in the system. Use the "analyze" command.');
+                        }
+                    }
+                }, 1000);
+            }
+
+            // Update timer display
+            function updateTimerDisplay() {
+                const minutes = Math.floor(secondsLeft / 60);
+                const seconds = secondsLeft % 60;
+                timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Change color based on time remaining
+                if (secondsLeft <= 60) { // Last minute
+                    timer.classList.add('text-error-color');
+                    timer.classList.add('font-bold');
+                } else if (secondsLeft <= 180) { // Last 3 minutes
+                    timer.classList.add('text-warning-color');
+                    timer.classList.remove('text-error-color');
+                }
+            }
+
+            // Show hint
+            function showHint(text) {
+                if (!settings.showHints) return;
+                
+                hintText.textContent = text;
+                hintBox.style.display = 'block';
+                
+                // Auto-hide hint after 15 seconds
+                setTimeout(() => {
+                    hintBox.style.display = 'none';
+                }, 15000);
+            }
+
+            // Show AI coach
+            function showAICoach() {
+                if (!settings.enableAICoach) return;
+                aiCoachSection.classList.remove('hidden');
+            }
+
+            // Request AI coaching with dynamic feedback
+            function requestAICoaching() {
+                // Here we would typically call the Poe API to get coaching
+                // For now, we'll simulate it with some pre-written responses
+                
+                const aiCoachContent = document.getElementById('aiCoachContent');
+                const loadingElement = document.createElement('div');
+                loadingElement.className = 'flex justify-center my-4';
+                loadingElement.innerHTML = '<div class="loader"></div>';
+                aiCoachContent.innerHTML = '';
+                aiCoachContent.appendChild(loadingElement);
+                
+                setTimeout(() => {
+                    // For a real implementation, this is where we'd use the Poe API:
+                    /*
+                    try {
+                        window.Poe.sendUserMessage(
+                            "@Claude-3.7-Sonnet I'm stuck on a hacking challenge where I need to infiltrate a corporate network. I've identified SQL injection as a vulnerability but I'm not sure how to proceed effectively. What are the best techniques for SQL injection and how can I minimize detection?",
+                            {
+                                handler: "coaching-handler",
+                                stream: true,
+                                openChat: false
+                            }
+                        );
+                    } catch (err) {
+                        aiCoachContent.innerHTML = `<p>Error connecting to AI coach: ${err.message}</p>`;
+                    }
+                    */
+                    
+                    // Simulated AI coach response
+                    aiCoachContent.innerHTML = `
+                        <p>For SQL injection attacks, consider these techniques:</p>
+                        <ul class="list-disc ml-6 mt-2 space-y-1">
+                            <li>Try variations beyond the basic ' OR 1=1 -- such as " OR "1"="1</li>
+                            <li>Use UNION attacks to extract data from other tables</li>
+                            <li>Blind SQL injection techniques when you don't get direct output</li>
+                        </ul>
+                        <p class="mt-3">To minimize detection:</p>
+                        <ul class="list-disc ml-6 mt-2 space-y-1">
+                            <li>Use timing carefully - don't make too many requests rapidly</li>
+                            <li>Focus on extracting only the data you need</li>
+                            <li>After gaining access, consider using the "clean logs" command to remove evidence</li>
+                        </ul>
+                        <p class="mt-3">In real-world pentesting, always ensure you have proper authorization before attempting any of these techniques.</p>
+                    `;
+                }, 2000);
+            }
+
+            // Update mission progress
+            function updateProgress() {
+                const progressSteps = document.querySelectorAll('.progress-step');
+                let completedCount = 0;
+                
+                currentMission.steps.forEach((step, index) => {
+                    if (step.completed) {
+                        progressSteps[index].classList.add('completed');
+                        progressSteps[index].classList.remove('current');
+                        completedCount++;
+                    } else {
+                        progressSteps[index].classList.remove('completed');
+                        // Set the first incomplete step as current
+                        if (index === completedCount) {
+                            progressSteps[index].classList.add('current');
+                        } else {
+                            progressSteps[index].classList.remove('current');
+                        }
+                    }
+                });
+                
+                // Update progress bar
+                const progressBar = document.querySelector('.bg-primary-color');
+                progressBar.style.width = `${(completedCount / currentMission.steps.length) * 100}%`;
+                
+                // Update step counter
+                const stepCounter = document.querySelector('.text-xs.mt-2.text-right');
+                stepCounter.textContent = `${completedCount}/${currentMission.steps.length} steps completed`;
+                
+                // Update mission progress in profile
+                if (playerProfile) {
+                    if (!playerProfile.missionProgress) {
+                        playerProfile.missionProgress = {};
+                    }
+                    playerProfile.missionProgress[currentMission.title] = completedCount / currentMission.steps.length;
+                    savePlayerProfile();
+                }
+            }
+            
+            // Add experience points
+            function addExperience(points) {
+                // Apply difficulty multiplier
+                if (settings.difficulty === 'easy') {
+                    points = Math.floor(points * 0.8);
+                } else if (settings.difficulty === 'hard') {
+                    points = Math.floor(points * 1.5);
+                }
+                
+                experience += points;
+                
+                // Update display
+                const experienceCounter = document.getElementById('experienceCounter');
+                if (experienceCounter) {
+                    experienceCounter.textContent = `XP: ${experience}`;
+                }
+                
+                // Update profile
+                if (playerProfile) {
+                    playerProfile.experience = experience;
+                    savePlayerProfile();
+                }
+                
+                // Show notification for significant XP gains
+                if (points >= 30) {
+                    showNotification('Experience Gained', `+${points} XP`);
+                }
+            }
+
+            // Mission complete
+            function missionComplete() {
+                clearInterval(timerInterval);
+                appendToTerminal('\n=== MISSION COMPLETE ===');
+                appendToTerminal('Congratulations! You have successfully infiltrated the corporate network and covered your tracks.');
+                appendToTerminal(`Experience gained: ${settings.difficulty === 'easy' ? 120 : settings.difficulty === 'normal' ? 150 : 225} XP`);
+                appendToTerminal('Credits earned: 500');
+                appendToTerminal('New tool unlocked: Vulnerability Scanner');
+                
+                // Add completion XP
+                addExperience(settings.difficulty === 'easy' ? 120 : settings.difficulty === 'normal' ? 150 : 225);
+                
+                // Add achievement to profile
+                if (playerProfile) {
+                    if (!playerProfile.achievements) {
+                        playerProfile.achievements = [];
+                    }
+                    playerProfile.achievements.push({
+                        name: 'Network Infiltrator',
+                        description: 'Successfully infiltrated a corporate network',
+                        earned: new Date().toISOString()
+                    });
+                    
+                    if (!playerProfile.completedMissions) {
+                        playerProfile.completedMissions = [];
+                    }
+                    playerProfile.completedMissions.push({
+                        title: currentMission.title,
+                        completedAt: new Date().toISOString(),
+                        difficulty: settings.difficulty
+                    });
+                    
+                    savePlayerProfile();
+                }
+                
+                // Disable command input
+                commandInput.disabled = true;
+                runCommand.disabled = true;
+                
+                // Show coaching with completion feedback
+                document.getElementById('aiCoachContent').innerHTML = `
+                    <p>Excellent work on completing the mission! Here's what you did well:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>You properly analyzed the system before attempting to exploit it</li>
+                        <li>You chose an effective SQL injection technique</li>
+                        <li>You remembered to clean your tracks - essential for avoiding detection</li>
+                    </ul>
+                    <p class="mt-3">For your next mission, consider:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>Learning more advanced SQL injection patterns</li>
+                        <li>Exploring methods to escalate privileges once inside a system</li>
+                        <li>Developing a more systematic approach to information gathering</li>
+                    </ul>
+                `;
+                aiCoachSection.classList.remove('hidden');
+                
+                // Show achievement notification
+                showNotification('Achievement Unlocked', 'You\'ve earned the "Network Infiltrator" achievement!');
+            }
+
+            // Mission failed
+            function missionFailed(reason) {
+                appendToTerminal('\n=== MISSION FAILED ===');
+                appendToTerminal(reason);
+                appendToTerminal('Experience gained: 25 XP');
+                appendToTerminal('Try again with a different approach.');
+                
+                // Add some consolation XP
+                addExperience(25);
+                
+                // Disable command input
+                commandInput.disabled = true;
+                runCommand.disabled = true;
+                
+                // Show coaching with failure feedback
+                document.getElementById('aiCoachContent').innerHTML = `
+                    <p>${reason}</p>
+                    <p class="mt-3">Here's what you can improve next time:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>Work more efficiently to complete objectives within the time limit</li>
+                        <li>Scan and analyze systems methodically before attempting exploits</li>
+                        <li>Remember to clean logs to avoid detection</li>
+                    </ul>
+                    <p class="mt-3">Don't worry - even professional hackers fail sometimes. The key is learning from each attempt.</p>
+                `;
+                aiCoachSection.classList.remove('hidden');
+            }
+            
+            // Profile management
+            function createProfile(username, avatar) {
+                playerProfile = {
+                    username: username,
+                    avatar: avatar,
+                    experience: 0,
+                    selectedPath: '',
+                    achievements: [],
+                    completedMissions: [],
+                    missionProgress: {},
+                    created: new Date().toISOString()
+                };
+                
+                experience = 0;
+                savePlayerProfile();
+            }
+            
+            function savePlayerProfile() {
+                localStorage.setItem('hackerProfile', JSON.stringify(playerProfile));
+            }
+            
+            function loadPlayerProfile() {
+                const profileData = localStorage.getItem('hackerProfile');
+                
+                if (profileData) {
+                    playerProfile = JSON.parse(profileData);
+                    experience = playerProfile.experience || 0;
+                    
+                    // Update experience counter
+                    const experienceCounter = document.getElementById('experienceCounter');
+                    if (experienceCounter) {
+                        experienceCounter.textContent = `XP: ${experience}`;
+                    }
+                    
+                    // Show existing profile section
+                    createProfileSection.classList.add('hidden');
+                    existingProfileSection.classList.remove('hidden');
+                    
+                    // Update profile details
+                    document.getElementById('profileUsername').textContent = playerProfile.username;
+                    document.getElementById('profileXP').textContent = `XP: ${playerProfile.experience}`;
+                    
+                    // Load avatar
+                    const profileAvatar = document.getElementById('profileAvatar');
+                    // Here you would set the avatar based on playerProfile.avatar
+                    
+                    // Load achievements
+                    const achievementsList = document.getElementById('achievementsList');
+                    if (playerProfile.achievements && playerProfile.achievements.length > 0) {
+                        achievementsList.innerHTML = '';
+                        playerProfile.achievements.forEach(achievement => {
+                            const achievementDate = new Date(achievement.earned).toLocaleDateString();
+                            achievementsList.innerHTML += `
+                                <div class="mb-2">
+                                    <div class="font-medium">${achievement.name}</div>
+                                    <div class="text-xs opacity-75">${achievement.description}</div>
+                                    <div class="text-xs opacity-50">Earned: ${achievementDate}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        achievementsList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">Complete missions to earn achievements.</p>';
+                    }
+                    
+                    // Load mission history
+                    const missionHistoryList = document.getElementById('missionHistoryList');
+                    if (playerProfile.completedMissions && playerProfile.completedMissions.length > 0) {
+                        missionHistoryList.innerHTML = '';
+                        playerProfile.completedMissions.forEach(mission => {
+                            const missionDate = new Date(mission.completedAt).toLocaleDateString();
+                            missionHistoryList.innerHTML += `
+                                <div class="mb-2">
+                                    <div class="font-medium">${mission.title}</div>
+                                    <div class="text-xs opacity-75">Difficulty: ${mission.difficulty}</div>
+                                    <div class="text-xs opacity-50">Completed: ${missionDate}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        missionHistoryList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">No missions completed yet.</p>';
+                    }
+                } else {
+                    // Show create profile section
+                    createProfileSection.classList.remove('hidden');
+                    existingProfileSection.classList.add('hidden');
+                }
+            }
+            
+            // Settings management
+            function loadSettings() {
+                const savedSettings = localStorage.getItem('gameSettings');
+                
+                if (savedSettings) {
+                    settings = JSON.parse(savedSettings);
+                    
+                    // Apply settings to UI
+                    document.getElementById('volumeSlider').value = settings.soundVolume;
+                    document.getElementById('volumeValue').textContent = `${settings.soundVolume}%`;
+                    document.getElementById('muteSound').checked = settings.muteSounds;
+                    document.getElementById('enableHints').checked = settings.showHints;
+                    document.getElementById('enableAICoach').checked = settings.enableAICoach;
+                    
+                    // Set difficulty button states
+                    setDifficultyButtons(settings.difficulty);
+                }
+            }
+            
+            function saveSettings() {
+                localStorage.setItem('gameSettings', JSON.stringify(settings));
+            }
+            
+            function setDifficulty(level) {
+                settings.difficulty = level;
+                setDifficultyButtons(level);
+            }
+            
+            function setDifficultyButtons(level) {
+                const easyBtn = document.getElementById('easyMode');
+                const normalBtn = document.getElementById('normalMode');
+                const hardBtn = document.getElementById('hardMode');
+                
+                // Reset all buttons
+                easyBtn.className = 'flex-1 text-center py-2 border border-primary-color rounded';
+                normalBtn.className = 'flex-1 text-center py-2 border border-primary-color rounded';
+                hardBtn.className = 'flex-1 text-center py-2 border border-primary-color rounded';
+                
+                // Set active button
+                if (level === 'easy') {
+                    easyBtn.className = 'flex-1 text-center py-2 bg-primary-color text-white rounded';
+                } else if (level === 'normal') {
+                    normalBtn.className = 'flex-1 text-center py-2 bg-primary-color text-white rounded';
+                } else {
+                    hardBtn.className = 'flex-1 text-center py-2 bg-primary-color text-white rounded';
+                }
+            }
+            
+            // Modal helpers
+            function showModal(modal) {
+                modal.classList.add('active');
+            }
+            
+            function hideModal(modal) {
+                modal.classList.remove('active');
+            }
+            
+            // Notification system
+            function showNotification(title, message) {
+                notificationTitle.textContent = title;
+                notificationContent.textContent = message;
+                notification.classList.add('active');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    notification.classList.remove('active');
+                }, 5000);
+            }
+
+            // Initialize dynamic elements with CSS variables
+            function initializeDynamicStyles() {
+                document.documentElement.style.setProperty('--primary-color', '#5D5CDE');
+                document.documentElement.style.setProperty('--secondary-color', '#38B2AC');
+                document.documentElement.style.setProperty('--terminal-bg', '#0D1117');
+                document.documentElement.style.setProperty('--terminal-text', '#58A6FF');
+                document.documentElement.style.setProperty('--success-color', '#10B981');
+                document.documentElement.style.setProperty('--error-color', '#EF4444');
+                document.documentElement.style.setProperty('--warning-color', '#F59E0B');
+                
+                // Initialize dark/light mode detection
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.classList.add('dark');
+                }
+                
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                    if (event.matches) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                });
+            }
+
+            // Call initialization functions
+            initializeDynamicStyles();
+            loadSettings();
+            
+            // Check for existing profile
+            const existingProfile = localStorage.getItem('hackerProfile');
+            if (existingProfile) {
+                playerProfile = JSON.parse(existingProfile);
+                experience = playerProfile.experience || 0;
+                
+                // Update experience counter
+                const experienceCounter = document.getElementById('experienceCounter');
+                if (experienceCounter) {
+                    experienceCounter.textContent = `XP: ${experience}`;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
