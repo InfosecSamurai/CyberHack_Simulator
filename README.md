@@ -132,9 +132,3 @@ Contributions are welcome! If you'd like to contribute to CyberHack Simulator, p
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ```
-
-### Key Changes:
-- **Centered Images**: Wrapped the `<img>` elements in a `<div>` with `text-align: center;` to center them on the page.
-- **Consistent Sizing**: Specified both `width` and `height` attributes for each image to ensure they display at the same size. In this example, I set the width to `400px` and the height to `300px`. You can adjust these values according to your design preference.
-
-This approach will keep your images uniformly sized and aligned in the center of the page. Adjust the width and height as necessary to fit your overall design!
