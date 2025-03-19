@@ -98,8 +98,8 @@ To set up the CyberHack Simulator on your local machine, follow these steps:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/InfosecSamurai/CyberHackSimulator.git
-   cd CyberHackSimulator
+   git clone https://github.com/InfosecSamurai/CyberHack_Simulator.git
+   cd CyberHack_Simulator
    ```
 
 2. Open `index.html` in your preferred web browser and start playing!
